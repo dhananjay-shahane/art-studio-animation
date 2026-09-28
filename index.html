@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Art Studio - Creative Workspace Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap"
+    rel="stylesheet">
+  <link rel="icon" type="image/x-icon" href="./favicon.ico">
+  <link rel="icon" type="image/png" sizes="64x64" href="./favicon.png">
+  <link rel="apple-touch-icon" href="./favicon.png">
+  <meta name="theme-color" content="#4a7c59">
+  <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+  <!-- Minimal Smooth Loading Screen -->
+  <div id="loading-screen">
+    <div class="loader-content">
+      <div id="loader-palette-container" class="loader-palette-preview"></div>
+      <h2 class="loader-title">Art Studio Login</h2>
+      <p class="loader-subtitle">Loading 3D Artist, Palette & Canvas Scene...</p>
+      <div class="progress-bar-bg">
+        <div id="loading-progress" class="progress-bar-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Split Layout: Left Form, Right 3D Scene -->
+  <div class="app-split-container">
+    <!-- Left Side: Modern Login Form -->
+    <aside class="auth-panel">
+      <div class="auth-scroll-wrapper">
+        <div class="auth-card">
+          <div class="auth-header">
+            <!-- Palette Logo matching palette.glb -->
+            <div class="auth-logo">
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Warm wooden palette body -->
+                <path
+                  d="M24 4C12.95 4 4 12.95 4 24c0 11.05 8.95 20 20 20 2.21 0 4-1.79 4-4 0-1.04-.42-1.96-1.06-2.64-.62-.66-1.02-1.54-1.02-2.52 0-2.21 1.79-4 4-4h4.72C39.72 30.84 44 26.56 44 21.16 44 11.66 35.05 4 24 4z"
+                  fill="#C48C58" />
+                <path
+                  d="M24 4C12.95 4 4 12.95 4 24c0 11.05 8.95 20 20 20 2.21 0 4-1.79 4-4 0-1.04-.42-1.96-1.06-2.64-.62-.66-1.02-1.54-1.02-2.52 0-2.21 1.79-4 4-4h4.72C39.72 30.84 44 26.56 44 21.16 44 11.66 35.05 4 24 4z"
+                  fill="url(#woodGrain)" opacity="0.15" />
+                <!-- Paint blobs matching palette.glb colors -->
+                <circle cx="13" cy="15" r="3.5" fill="#ef4444" /> <!-- Crimson Red -->
+                <circle cx="10" cy="24" r="3.5" fill="#f97316" /> <!-- Sunset Orange -->
+                <circle cx="14" cy="33" r="3.5" fill="#facc15" /> <!-- Cadmium Yellow -->
+                <circle cx="24" cy="37" r="3" fill="#10b981" /> <!-- Emerald Green -->
+                <circle cx="22" cy="11" r="3.5" fill="#3b82f6" /> <!-- Cobalt Blue -->
+                <circle cx="33" cy="14" r="3.5" fill="#8b5cf6" /> <!-- Purple Violet -->
+                <!-- Thumbhole -->
+                <circle cx="34" cy="24" r="4" fill="#f7faf5" />
+                <defs>
+                  <linearGradient id="woodGrain" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="#8B6914" />
+                    <stop offset="0.5" stop-color="#C48C58" />
+                    <stop offset="1" stop-color="#8B6914" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <div class="auth-badge">
+              <span class="badge-dot"></span>
+              <span>ART STUDIO</span>
+            </div>
+            <h1 class="auth-title">Welcome back</h1>
+            <p class="auth-subtitle">Sign in to your creative workspace and live 3D plein-air studio.</p>
+          </div>
+
+          <form id="login-form" class="auth-form" onsubmit="event.preventDefault();">
+            <div class="form-group">
+              <label for="email" class="form-label">Email address</label>
+              <div class="input-wrapper">
+                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                </svg>
+                <input type="email" id="email" class="form-input" placeholder="artist@studio.com" required
+                  autocomplete="email" value="alex@atelier.art">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <div class="label-row">
+                <label for="password" class="form-label">Password</label>
+                <a href="#forgot" class="forgot-link">Forgot password?</a>
+              </div>
+              <div class="input-wrapper">
+                <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <input type="password" id="password" class="form-input" placeholder="••••••••••••" required
+                  autocomplete="current-password" value="Masterpiece2026!">
+                <button type="button" id="toggle-password" class="btn-toggle-pw" title="Show/Hide Password"
+                  aria-label="Toggle password visibility">
+                  <svg class="icon-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-options">
+              <label class="remember-me">
+                <input type="checkbox" id="remember" checked>
+                <span class="custom-checkbox"></span>
+                <span class="checkbox-label">Keep me signed in</span>
+              </label>
+            </div>
+
+            <button type="submit" id="btn-submit" class="btn-primary-auth">
+              <span>Sign In to Studio</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"></path>
+                <path d="m12 5 7 7-7 7"></path>
+              </svg>
+            </button>
+
+            <div class="divider">
+              <span>or continue with</span>
+            </div>
+
+            <div class="social-login-grid">
+              <button type="button" class="btn-social">
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <path fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>Google</span>
+              </button>
+              <button type="button" class="btn-social">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path
+                    d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.76 1.05-1.82.93-2.87-.9.04-2 .6-2.64 1.36-.57.65-1.07 1.73-.93 2.76 1.01.08 2.02-.49 2.64-1.25z" />
+                </svg>
+                <span>Apple</span>
+              </button>
+            </div>
+          </form>
+
+          <footer class="auth-footer">
+            <p>Don't have an artist account? <a href="#signup" class="signup-link">Create Account</a></p>
+          </footer>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Side: 3D Scene Viewport -->
+    <main id="canvas-container" class="scene-viewport">
+      <div id="artist-interactive-hud" class="artist-interactive-hud">
+        <span class="hud-dot"></span>
+        <span id="hud-status-text">Hover over the Artist to dip &amp; paint!</span>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+
+</html>
