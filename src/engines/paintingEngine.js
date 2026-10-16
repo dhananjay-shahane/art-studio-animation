@@ -5,7 +5,7 @@ export class PaintingEngine {
     this.canvasMesh = canvasMesh;
     this.width = 1024;
     this.height = 614;
-    
+
     // Create offscreen 2D canvas
     this.canvas = document.createElement('canvas');
     this.canvas.width = this.width;
@@ -40,14 +40,25 @@ export class PaintingEngine {
     this.referenceImg = new Image();
     this.referenceImg.src = './original_painting.png';
     this.referenceImgLoaded = false;
-    this.referenceImg.onload = () => {
+
+    const onImgLoaded = () => {
       this.referenceImgLoaded = true;
       this.initCanvas();
     };
 
+    if (this.referenceImg.complete && this.referenceImg.naturalWidth > 0) {
+      this.referenceImgLoaded = true;
+    } else {
+      this.referenceImg.onload = onImgLoaded;
+    }
+
     this.paintedStrokesCount = 0;
+    // isRevealing = true → brush strokes progressively reveal the nature reference painting
     this.isRevealing = true;
     this.strokeAngle = 0;
+
+    // Initialise canvas immediately
+    this.initCanvas();
   }
 
   initCanvas() {
@@ -64,14 +75,64 @@ export class PaintingEngine {
       this.ctx.fillRect(0, y, this.width, 1.5);
     }
 
-    // Faint artistic pencil sketch layout
-    this.ctx.strokeStyle = 'rgba(120, 110, 100, 0.25)';
+    // Faint artistic pencil sketch layout for the remaining unpainted half
+    this.ctx.strokeStyle = 'rgba(120, 110, 100, 0.28)';
     this.ctx.lineWidth = 2;
     this.ctx.beginPath();
     // Horizon and mountain lines
     this.ctx.moveTo(0, this.height * 0.6);
     this.ctx.bezierCurveTo(this.width * 0.3, this.height * 0.45, this.width * 0.7, this.height * 0.65, this.width, this.height * 0.55);
     this.ctx.stroke();
+
+    // Immediate painterly landscape baseline (sky & mountains) so canvas is never blank
+    const skyGrad = this.ctx.createLinearGradient(0, 0, 0, this.height * 0.52);
+    skyGrad.addColorStop(0, '#5b9bd5');
+    skyGrad.addColorStop(0.6, '#a8d5e5');
+    skyGrad.addColorStop(1, '#fde2b8');
+    this.ctx.fillStyle = skyGrad;
+    this.ctx.fillRect(0, 0, this.width, this.height * 0.52);
+
+    // Distant mountain silhouette baseline
+    this.ctx.fillStyle = '#6a8276';
+    this.ctx.beginPath();
+    this.ctx.moveTo(0, this.height * 0.42);
+    this.ctx.lineTo(this.width * 0.25, this.height * 0.28);
+    this.ctx.lineTo(this.width * 0.52, this.height * 0.38);
+    this.ctx.lineTo(this.width * 0.78, this.height * 0.24);
+    this.ctx.lineTo(this.width, this.height * 0.36);
+    this.ctx.lineTo(this.width, this.height * 0.52);
+    this.ctx.lineTo(0, this.height * 0.52);
+    this.ctx.closePath();
+    this.ctx.fill();
+
+    // 50% of the painting already drawn with authentic painterly brushwork
+    if (this.referenceImgLoaded) {
+      this.ctx.save();
+      this.ctx.beginPath();
+      // Artistic organic boundary across upper ~50% of canvas
+      this.ctx.moveTo(0, 0);
+      this.ctx.lineTo(this.width, 0);
+      this.ctx.lineTo(this.width, this.height * 0.54);
+
+      const steps = 36;
+      for (let i = steps; i >= 0; i--) {
+        const px = (i / steps) * this.width;
+        const wave = Math.sin(i * 0.75) * 26 + Math.cos(i * 1.4) * 18;
+        const py = this.height * 0.50 + wave;
+        this.ctx.lineTo(px, py);
+      }
+      this.ctx.closePath();
+      this.ctx.clip();
+      this.ctx.drawImage(this.referenceImg, 0, 0, this.width, this.height);
+      this.ctx.restore();
+
+      // Expressive impasto brush marks along the working edge showing active progress
+      for (let x = 12; x < this.width - 12; x += 22) {
+        const wave = Math.sin((x / this.width) * 16) * 24 + Math.cos((x / this.width) * 34) * 16;
+        const y = this.height * 0.50 + wave;
+        this.paintAt(x / this.width, y / this.height, 24 + Math.random() * 14);
+      }
+    }
 
     this.texture.needsUpdate = true;
   }
@@ -89,7 +150,6 @@ export class PaintingEngine {
 
   setColorHex(hex) {
     this.customColor = hex;
-    // Keep revealing artistic texture or paint vivid strokes
   }
 
   // Draw an authentic artistic paint stroke
@@ -110,8 +170,16 @@ export class PaintingEngine {
       this.ctx.drawImage(this.referenceImg, 0, 0, this.width, this.height);
       this.ctx.restore();
 
+      // Pigment glaze tint from the picked color
+      this.ctx.fillStyle = color;
+      this.ctx.globalAlpha = 0.28;
+      this.ctx.beginPath();
+      this.ctx.ellipse(x, y, r, r * 0.45, this.strokeAngle, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.globalAlpha = 1.0;
+
       // Add a slight impasto acrylic edge highlight
-      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
       this.ctx.lineWidth = 2;
       this.ctx.beginPath();
       this.ctx.arc(x, y - 2, size * 0.3, 0, Math.PI);

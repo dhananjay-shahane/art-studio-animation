@@ -1,0 +1,426 @@
+@import "../style.css";
+@import "tailwindcss";
+
+:root {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --accent:        #4a7c59;
+  --accent-hover:  #3d6b4a;
+  --accent-light:  #5a9a6b;
+  --accent-glow:   rgba(74,124,89,0.25);
+  --text-main:     #1a2e1a;
+  --text-muted:    #5c7a5c;
+  --text-light:    #8aa38a;
+  --bg-input:      #f7faf5;
+  --border-input:  #d4e5d4;
+  --border-focus:  #5a9a6b;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background: #f1f5f9;
+}
+
+/* ── Desktop: fixed height, no scroll ───────────────────────────────── */
+@media (min-width: 901px) {
+  html, body, #root {
+    height: 100vh;
+    overflow: hidden;
+  }
+}
+
+/* ── Mobile: scroll allowed ─────────────────────────────────────────── */
+@media (max-width: 900px) {
+  html, body, #root {
+    height: 100% !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+}
+
+/* ── Three.js canvas fills its container ────────────────────────────── */
+#scene-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* ── Auth panel slide-in animation (GPU-accelerated overlay) ───────── */
+.auth-panel {
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  z-index: 20;
+  transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.45s ease;
+  will-change: transform, opacity;
+}
+
+@media (min-width: 901px) {
+  .auth-panel {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 440px;
+    max-width: 90vw;
+    border-right: 1px solid rgba(226, 232, 240, 0.85);
+    box-shadow: 18px 0 50px rgba(15, 23, 42, 0.08);
+  }
+
+  .auth-panel.auth-panel-hidden {
+    transform: translate3d(-105%, 0, 0);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .auth-panel.auth-panel-visible {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .auth-panel {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+    max-height: 56vh;
+    border-top: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -15px 50px rgba(15, 23, 42, 0.16);
+    overflow: hidden;
+  }
+
+  .auth-panel.auth-panel-hidden {
+    transform: translate3d(0, 105%, 0);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .auth-panel.auth-panel-visible {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* ── Mobile bottom-sheet handle bar ─────────────────────────────────── */
+.bottom-sheet-handle-bar {
+  display: none;
+  width: 100%;
+  padding: 10px 0 6px 0;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+
+.bottom-sheet-handle {
+  width: 44px;
+  height: 5px;
+  border-radius: 99px;
+  background: #cbd5e1;
+  transition: background 0.2s ease, width 0.2s ease;
+}
+
+.bottom-sheet-handle-bar:hover .bottom-sheet-handle {
+  background: #4a7c59;
+  width: 52px;
+}
+
+/* ── Auth panel scroll wrapper ───────────────────────────────────────── */
+.auth-scroll-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 36px 32px;
+}
+
+@media (max-width: 900px) {
+  .bottom-sheet-handle-bar {
+    display: flex;
+  }
+  .auth-scroll-wrapper {
+    padding: 6px 20px 24px !important;
+    justify-content: flex-start !important;
+  }
+  .auth-logo {
+    display: none !important;
+  }
+  .auth-badge {
+    margin-bottom: 6px !important;
+  }
+  .auth-title {
+    font-size: 1.35rem !important;
+    margin-bottom: 2px !important;
+  }
+  .auth-subtitle {
+    font-size: 0.8rem !important;
+    margin-bottom: 10px !important;
+    line-height: 1.35 !important;
+  }
+  .form-group {
+    margin-bottom: 9px !important;
+  }
+  .form-input {
+    height: 42px !important;
+    font-size: 0.88rem !important;
+  }
+  .btn-primary-auth {
+    height: 44px !important;
+    font-size: 0.9rem !important;
+    margin-top: 10px !important;
+  }
+  .divider {
+    margin: 10px 0 !important;
+  }
+  .btn-social {
+    height: 38px !important;
+    font-size: 0.84rem !important;
+  }
+  .auth-footer {
+    margin-top: 10px !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+/* ── Precision Input Alignment (Prevents text overlapping icons) ────── */
+.input-wrapper {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+.input-icon {
+  position: absolute !important;
+  left: 14px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: #94a3b8 !important;
+  pointer-events: none !important;
+  z-index: 5 !important;
+  transition: color 0.2s ease !important;
+}
+
+.form-input {
+  width: 100% !important;
+  height: 48px !important;
+  padding-left: 44px !important;
+  padding-right: 44px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border-radius: var(--radius-md) !important;
+  border: 1.5px solid var(--border-input) !important;
+  background: var(--bg-input) !important;
+  color: var(--text-main) !important;
+  font-size: 0.92rem !important;
+  font-family: inherit !important;
+  font-weight: 500 !important;
+  outline: none !important;
+  transition: all 0.2s ease !important;
+}
+
+.form-input:focus {
+  outline: none !important;
+  background: #ffffff !important;
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 3px rgba(90,154,107,0.18) !important;
+}
+
+.form-input:focus + .input-icon,
+.input-wrapper:focus-within .input-icon {
+  color: var(--accent-green) !important;
+}
+
+.btn-toggle-pw {
+  position: absolute !important;
+  right: 12px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  background: none !important;
+  border: none !important;
+  color: #94a3b8 !important;
+  cursor: pointer !important;
+  padding: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: color 0.15s ease !important;
+  z-index: 5 !important;
+}
+
+.btn-toggle-pw:hover {
+  color: #475569 !important;
+}
+
+/* ── Fullscreen 3D Scene View Toggle Button ──────────────────────────── */
+.btn-view-toggle {
+  position: absolute;
+  top: 20px;
+  z-index: 35;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(200, 224, 200, 0.9);
+  color: #2d5038;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 3px 12px rgba(45, 80, 56, 0.14);
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, left 0.65s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+  user-select: none;
+}
+
+@media (min-width: 901px) {
+  .btn-view-toggle.toggle-panel-open {
+    left: 458px;
+  }
+  .btn-view-toggle.toggle-panel-closed {
+    left: 24px;
+  }
+}
+
+@media (max-width: 900px) {
+  .btn-view-toggle {
+    left: 16px;
+    top: 16px;
+  }
+}
+
+.btn-view-toggle:hover {
+  background: rgba(240, 250, 242, 0.98);
+  border-color: #6da27c;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(74, 124, 89, 0.22);
+}
+
+.btn-view-toggle:active {
+  transform: translateY(0);
+}
+
+/* ── Loading progress bar ────────────────────────────────────────────── */
+@keyframes colorShift {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.progress-bar-fill {
+  background: linear-gradient(
+    90deg,
+    #ef4444, #f97316, #facc15, #10b981, #3b82f6, #8b5cf6, #ef4444
+  );
+  background-size: 200% 100%;
+  animation: colorShift 2.5s linear infinite;
+}
+
+/* ── Badge dot pulse ─────────────────────────────────────────────────── */
+@keyframes pulse-hud {
+  0%, 100% { transform: scale(1);   opacity: 0.75; }
+  50%       { transform: scale(1.4); opacity: 1;    }
+}
+.hud-dot { animation: pulse-hud 1.8s infinite ease-in-out; }
+
+/* ── D-pad button active state ───────────────────────────────────────── */
+.dpad-btn[data-active="true"] {
+  background: #4a7c59 !important;
+  border-color: #3d6b4a !important;
+  color: #fff !important;
+  transform: scale(0.92) !important;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.18) !important;
+}
+
+@media (max-width: 900px) {
+  .dpad-container.dpad-mobile-hidden {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(20px) !important;
+  }
+}
+
+/* ── Mobile bottom peek pill tab ────────────────────────────────────── */
+.mobile-bottom-peek-tab {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .mobile-bottom-peek-tab {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 18px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(200, 224, 200, 0.9);
+    border-radius: 99px;
+    color: #2d5038;
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    font-weight: 700;
+    box-shadow: 0 4px 18px rgba(45, 80, 56, 0.18);
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.2s ease, background 0.2s ease;
+    animation: peekSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .mobile-bottom-peek-tab:hover,
+  .mobile-bottom-peek-tab:active {
+    background: rgba(240, 250, 242, 0.98);
+    transform: translateX(-50%) translateY(-2px);
+  }
+
+  .peek-handle-dash {
+    width: 28px;
+    height: 3px;
+    border-radius: 99px;
+    background: #4a7c59;
+    opacity: 0.7;
+  }
+}
+
+@keyframes peekSlideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+

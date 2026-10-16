@@ -140,6 +140,12 @@ const paletteColorMeshes = [];
 const artistMeshes = [];
 const timer = new THREE.Timer();
 
+// ── Game-style movement state ──
+const modelControls = {
+  moveSpeed: 0.06,   // units per frame
+  keys: {},          // currently held keys
+};
+
 const paletteHoverState = {
   elevation: 0,
   tiltX: 0,
@@ -303,7 +309,91 @@ async function loadAllAssets() {
     natureGroup.scale.setScalar(1.0);
     scene.add(natureGroup);
 
-    // Initialize Nature Animation Engine — wind, tree sway, particles
+    // ── Hide bridge from the base group ──
+    natureGroup.traverse((node) => {
+      const n = node.name.toLowerCase();
+      if (n.includes('bridge') || n.includes('bridege')) node.visible = false;
+    });
+
+    // ── Poisson-disc scatter: random positions, guaranteed spacing, no lines ──
+    function poissonScatter({ minFromOrigin, minBetween, maxRadius, count, maxTries = 900 }) {
+      const out = [];
+      for (let t = 0; t < maxTries && out.length < count; t++) {
+        const angle = Math.random() * Math.PI * 2;
+        const r     = minFromOrigin + Math.random() * (maxRadius - minFromOrigin);
+        const x     = Math.cos(angle) * r + (Math.random() - 0.5) * 3.5;
+        const z     = Math.sin(angle) * r + (Math.random() - 0.5) * 3.5;
+        if (Math.hypot(x, z) < minFromOrigin) continue;
+        if (out.some(p => Math.hypot(p.x - x, p.z - z) < minBetween)) continue;
+        out.push({ x, z, rotY: Math.random() * Math.PI * 2 });
+      }
+      return out;
+    }
+
+    // ── Clone helper: show only matching meshes ──
+    function makeClone(filterFn) {
+      const clone = natureGltf.scene.clone(true);
+      clone.traverse((node) => {
+        const n = node.name.toLowerCase();
+        if (!filterFn(n, node.isMesh)) { node.visible = false; return; }
+        if (node.isMesh) {
+          node.castShadow = true; node.receiveShadow = true;
+          if (node.material) node.material = node.material.clone();
+        }
+      });
+      return clone;
+    }
+
+    const isTreeNode   = (n, isMesh) => !isMesh || (!n.includes('rock') && !n.includes('bridge') &&
+                          !n.includes('bridege') && !n.includes('sign') && !n.includes('cactus') &&
+                          !n.includes('flower') && !n.includes('plant') && !n.includes('bush') &&
+                          !n.includes('fern') && !n.includes('grass') && !n.includes('shrub'));
+    const isRockNode   = (n, isMesh) => !isMesh || n.includes('rock');
+    const isFlowerNode = (n, isMesh) => !isMesh || n.includes('flower') || n.includes('plant') ||
+                          n.includes('bush') || n.includes('fern') || n.includes('grass') ||
+                          n.includes('shrub') || n.includes('weed') || n.includes('herb');
+
+    // ── 1. TREES — min 12 units from person, min 9 between each tree ──
+    const treeSpots = poissonScatter({ minFromOrigin: 12, minBetween: 9, maxRadius: 26, count: 20 });
+    for (const s of treeSpots) {
+      const scale = 0.58 + Math.random() * 0.44;
+      const clone = makeClone(isTreeNode);
+      const box   = new THREE.Box3().setFromObject(clone);
+      clone.position.set(s.x, -box.min.y * scale, s.z);
+      clone.rotation.y = s.rotY;
+      clone.scale.setScalar(scale);
+      scene.add(clone);
+    }
+
+    // ── 2. ROCKS — small (×5), medium (×5), large (×4), random spread ──
+    const rockScales = [
+      ...Array.from({length: 5}, () => 0.22 + Math.random() * 0.20),  // small
+      ...Array.from({length: 5}, () => 0.52 + Math.random() * 0.28),  // medium
+      ...Array.from({length: 4}, () => 0.95 + Math.random() * 0.65),  // large
+    ];
+    const rockSpots = poissonScatter({ minFromOrigin: 8, minBetween: 4.5, maxRadius: 22, count: rockScales.length });
+    rockSpots.forEach((s, i) => {
+      const scale = rockScales[i];
+      const clone = makeClone(isRockNode);
+      const box   = new THREE.Box3().setFromObject(clone);
+      clone.position.set(s.x, -box.min.y * scale, s.z);
+      clone.rotation.y = s.rotY;
+      clone.scale.setScalar(scale);
+      scene.add(clone);
+    });
+
+    // ── 3. FLOWERS & PLANTS — 32 instances, dense, close to artist too ──
+    const flowerSpots = poissonScatter({ minFromOrigin: 2.5, minBetween: 1.8, maxRadius: 18, count: 32 });
+    for (const s of flowerSpots) {
+      const scale = 0.30 + Math.random() * 0.60;
+      const clone = makeClone(isFlowerNode);
+      const box   = new THREE.Box3().setFromObject(clone);
+      clone.position.set(s.x, -box.min.y * scale, s.z);
+      clone.rotation.y = s.rotY;
+      clone.scale.setScalar(scale);
+      scene.add(clone);
+    }
+
     natureAnimationEngine = new NatureAnimationEngine(natureGroup, scene);
 
     // 2. Load Artist Character (artist.glb)
@@ -494,6 +584,7 @@ async function loadAllAssets() {
     }, 400);
 
     setupUI();
+    setupControlsPanel();
     setupRaycasterHover();
   } catch (error) {
     console.error('Asset load error:', error);
@@ -507,62 +598,33 @@ async function loadAllAssets() {
 function setupRaycasterHover() {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
-
-  let activeHover = null; // 'palette' | 'canvas' | 'artist' | null
-  const hudElement = document.getElementById('artist-interactive-hud');
-  const hudText = document.getElementById('hud-status-text');
-
-  const updateHud = (text, active = false) => {
-    if (hudText) hudText.textContent = text;
-    if (hudElement) {
-      if (active) hudElement.classList.add('active');
-      else hudElement.classList.remove('active');
-    }
-  };
+  let activeHover = null;
 
   container.addEventListener('pointermove', (event) => {
     const rect = container.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-    // Send normalized coordinates to animation engine for subtle responsive gaze tracking
-    if (animationEngine) {
-      animationEngine.setMousePointer(mouse.x, mouse.y);
-    }
-
+    if (animationEngine) animationEngine.setMousePointer(mouse.x, mouse.y);
     raycaster.setFromCamera(mouse, camera);
 
-    // 1. Check Palette Colors (palette.glb)
+    // 1. Palette colours
     let isPaletteHit = false;
     if (paletteColorMeshes.length > 0) {
-      const paletteHits = raycaster.intersectObjects(paletteColorMeshes, false);
-      if (paletteHits.length > 0) {
+      const hits = raycaster.intersectObjects(paletteColorMeshes, false);
+      if (hits.length > 0) {
         isPaletteHit = true;
-        const uData = paletteHits[0].object.userData;
+        const uData = hits[0].object.userData;
         if (uData && uData.colorHex) {
           if (paintbrush) paintbrush.setTipColor(uData.colorHex);
-          if (paintingEngine) {
-            paintingEngine.setColor(uData.colorIndex);
-            paintingEngine.setColorHex(uData.colorHex);
-          }
+          if (paintingEngine) { paintingEngine.setColor(uData.colorIndex); paintingEngine.setColorHex(uData.colorHex); }
           if (animationEngine) animationEngine.hoverPaletteColor(uData.colorHex, uData.colorIndex);
-          // Highlight this color on palette.glb
           if (paletteAnimationEngine) paletteAnimationEngine.highlightColor(uData.colorIndex);
-
-          updateHud(`🎨 Palette: Dipping ${uData.label || 'Color'}`, true);
         }
       }
     }
-
-    // 2. Check Palette Body / Pivot
     if (!isPaletteHit && palettePivot) {
-      const paletteBodyHits = raycaster.intersectObject(palettePivot, true);
-      if (paletteBodyHits.length > 0) {
-        isPaletteHit = true;
-        updateHud('🎨 Color Palette: Click or hover a paint well', true);
-      }
+      if (raycaster.intersectObject(palettePivot, true).length > 0) isPaletteHit = true;
     }
-
     if (isPaletteHit) {
       container.style.cursor = 'pointer';
       if (activeHover !== 'palette') {
@@ -574,44 +636,35 @@ function setupRaycasterHover() {
       return;
     }
 
-    // 3. Check Canvas Painting
+    // 2. Canvas
     if (canvasMesh) {
-      const canvasHits = raycaster.intersectObject(canvasMesh, false);
-      if (canvasHits.length > 0) {
-        const hit = canvasHits[0];
-        if (hit.uv) {
-          container.style.cursor = 'crosshair';
-          if (activeHover === 'palette') onPaletteHoverLeave();
-          if (activeHover === 'artist' && animationEngine) animationEngine.clearArtistHover();
-          activeHover = 'canvas';
-          if (animationEngine) animationEngine.hoverCanvas(hit.uv.x, hit.uv.y);
-          updateHud('🖌️ Studio Canvas: Live interactive brushwork', true);
-          return;
-        }
-      }
-    }
-
-    // 4. Check Artist Character (artist.glb)
-    if (artistMeshes.length > 0) {
-      const artistHits = raycaster.intersectObjects(artistMeshes, true);
-      if (artistHits.length > 0) {
-        container.style.cursor = 'pointer';
+      const hits = raycaster.intersectObject(canvasMesh, false);
+      if (hits.length > 0 && hits[0].uv) {
+        container.style.cursor = 'crosshair';
         if (activeHover === 'palette') onPaletteHoverLeave();
-        if (activeHover === 'canvas' && animationEngine) animationEngine.clearHover();
-        activeHover = 'artist';
-        if (animationEngine) animationEngine.hoverArtist();
-        updateHud('✨ Artist in Action: Dipping paint & creating brushwork...', true);
+        if (activeHover === 'artist' && animationEngine) animationEngine.clearArtistHover();
+        activeHover = 'canvas';
+        if (animationEngine) animationEngine.hoverCanvas(hits[0].uv.x, hits[0].uv.y);
         return;
       }
     }
 
-    // 5. Default / Unhovered
+    // 3. Artist
+    if (artistMeshes.length > 0 && raycaster.intersectObjects(artistMeshes, true).length > 0) {
+      container.style.cursor = 'pointer';
+      if (activeHover === 'palette') onPaletteHoverLeave();
+      if (activeHover === 'canvas' && animationEngine) animationEngine.clearHover();
+      activeHover = 'artist';
+      if (animationEngine) animationEngine.hoverArtist();
+      return;
+    }
+
+    // 4. Default
     container.style.cursor = 'default';
     if (activeHover === 'palette') onPaletteHoverLeave();
     if (activeHover === 'artist' && animationEngine) animationEngine.clearArtistHover();
     if (activeHover === 'canvas' && animationEngine) animationEngine.clearHover();
     activeHover = null;
-    updateHud('Hover over Artist or Palette to interact', false);
   });
 
   container.addEventListener('pointerleave', () => {
@@ -620,11 +673,80 @@ function setupRaycasterHover() {
     if (activeHover === 'artist' && animationEngine) animationEngine.clearArtistHover();
     if (activeHover === 'canvas' && animationEngine) animationEngine.clearHover();
     activeHover = null;
-    updateHud('Hover over Artist or Palette to interact', false);
   });
 }
 
-// 5. Clean Login Form Setup
+// ── Controls Panel + Game-style keyboard movement ──
+function setupControlsPanel() {
+  // ── Keyboard movement (WASD + Arrow keys) ──
+  window.addEventListener('keydown', (e) => { modelControls.keys[e.code] = true; });
+  window.addEventListener('keyup',   (e) => { modelControls.keys[e.code] = false; });
+
+  // ── On-screen directional buttons ──
+  const moveControls = document.getElementById('move-controls');
+  if (!moveControls) return;
+
+  const keyMap = { ArrowUp: 'KeyW', ArrowDown: 'KeyS', ArrowLeft: 'KeyA', ArrowRight: 'KeyD' };
+
+  moveControls.querySelectorAll('.mc-btn[data-key]').forEach((btn) => {
+    const code = btn.dataset.key;
+    const press   = () => { modelControls.keys[code] = true;  if (keyMap[code]) modelControls.keys[keyMap[code]] = true;  };
+    const release = () => { modelControls.keys[code] = false; if (keyMap[code]) modelControls.keys[keyMap[code]] = false; };
+    btn.addEventListener('pointerdown',  (e) => { e.preventDefault(); press();   btn.classList.add('active');    });
+    btn.addEventListener('pointerup',    (e) => { e.preventDefault(); release(); btn.classList.remove('active'); });
+    btn.addEventListener('pointerleave', (e) => { release(); btn.classList.remove('active'); });
+    btn.addEventListener('touchstart',   (e) => { e.preventDefault(); press();   btn.classList.add('active');    }, { passive: false });
+    btn.addEventListener('touchend',     (e) => { e.preventDefault(); release(); btn.classList.remove('active'); }, { passive: false });
+  });
+
+  // ── Reset button ──
+  const resetBtn = document.getElementById('mc-reset');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      if (!modelRoot) return;
+      modelRoot.position.set(0, 0, 0);
+      modelRoot.rotation.set(0, 0, 0);
+      // Re-snap to ground
+      const bbox = new THREE.Box3().setFromObject(modelRoot);
+      modelRoot.position.y = -bbox.min.y;
+    });
+  }
+}
+
+// ── Apply WASD / arrow-key movement every render frame ──
+function applyModelMovement() {
+  if (!modelRoot) return;
+  const k   = modelControls.keys;
+  const spd = modelControls.moveSpeed;
+  const moving = k['KeyW'] || k['KeyS'] || k['KeyA'] || k['KeyD'] ||
+                 k['ArrowUp'] || k['ArrowDown'] || k['ArrowLeft'] || k['ArrowRight'];
+
+  // Update walking state so AnimationEngine can play leg animation
+  if (animationEngine) animationEngine.isWalking = moving;
+
+  if (!moving) return;
+
+  // Move relative to camera so controls always feel natural
+  const camDir = new THREE.Vector3();
+  camera.getWorldDirection(camDir);
+  camDir.y = 0; camDir.normalize();
+  const camRight = new THREE.Vector3().crossVectors(camDir, THREE.Object3D.DEFAULT_UP).normalize();
+
+  const move = new THREE.Vector3();
+  if (k['KeyW'] || k['ArrowUp'])    move.addScaledVector(camDir,    spd);
+  if (k['KeyS'] || k['ArrowDown'])  move.addScaledVector(camDir,   -spd);
+  if (k['KeyA'] || k['ArrowLeft'])  move.addScaledVector(camRight, -spd);
+  if (k['KeyD'] || k['ArrowRight']) move.addScaledVector(camRight,  spd);
+
+  modelRoot.position.add(move);
+  modelRoot.position.y = Math.max(modelRoot.position.y, 0);
+
+  if (move.lengthSq() > 0) {
+    modelRoot.rotation.y = Math.atan2(move.x, move.z);
+  }
+}
+
+// 5. Login Form Setup
 function setupUI() {
   // Password Visibility Toggle
   const togglePwBtn = document.getElementById('toggle-password');
@@ -745,6 +867,7 @@ function renderLoop() {
     paletteAnimationEngine.update(delta);
   }
 
+  applyModelMovement();
   controls.update();
   renderer.render(scene, camera);
 }

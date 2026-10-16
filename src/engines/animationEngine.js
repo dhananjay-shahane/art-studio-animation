@@ -42,6 +42,11 @@ export class AnimationEngine {
     this.mousePointer = { x: 0, y: 0 };
     this.currentGaze = { x: 0, y: 0 };
 
+    // Movement and canvas engagement state
+    this.isWalking = false;
+    this.isNearCanvas = true;
+    this.armPoseWeight = 1.0; // 1.0 = holding palette & brush near easel; 0.0 = hands down while walking
+
     // Callbacks
     this.onBrushStroke = null;
     this.onColorPicked = null;
@@ -50,15 +55,15 @@ export class AnimationEngine {
     // Based on real plein-air artist stance: slightly turned toward canvas,
     // weight on back foot, relaxed shoulders
     this.pose = {
-      // Left Arm: Holds palette at waist with thumb through thumbhole
-      leftArm: { x: 0.70, y: 0.15, z: 0.85 },
-      leftForeArm: { x: 0.40, y: 0.15, z: 0.70 },
-      leftHand: { x: 0.10, y: 0.05, z: 0.10 },
+      // Left Arm: Holds palette naturally in front between waist and easel
+      leftArm: { x: 0.52, y: 0.18, z: 0.58 },
+      leftForeArm: { x: 0.44, y: 0.10, z: 0.46 },
+      leftHand: { x: 0.08, y: 0.04, z: 0.06 },
 
-      // Right Arm: Active painting arm — uses full range of motion from shoulder
-      rightArm: { x: 0.65, y: -0.15, z: -0.90 },
-      rightForeArm: { x: 0.35, y: -0.10, z: -0.65 },
-      rightHand: { x: 0.10, y: -0.05, z: -0.15 },
+      // Right Arm: Active painting arm positioned forward towards canvas
+      rightArm: { x: 0.72, y: -0.12, z: -0.78 },
+      rightForeArm: { x: 0.48, y: -0.08, z: -0.52 },
+      rightHand: { x: 0.14, y: -0.04, z: -0.10 },
 
       // Head: Tracks between canvas, palette, and distant nature scene
       head: { x: -0.06, y: 0.04, z: -0.02 },
@@ -276,7 +281,7 @@ export class AnimationEngine {
       duration: 900,
       ease: 'inOutQuad',
       onUpdate: () => {
-        if (!this.isHoveringPalette && !this.isHoveringCanvas && !this.isHoveringArtist && this.onBrushStroke) {
+        if (!this.isHoveringPalette && !this.isHoveringCanvas && !this.isHoveringArtist && this.armPoseWeight > 0.7 && this.onBrushStroke) {
           const now = performance.now();
           if (now - this.lastStrokeTime > 120) {
             this.lastStrokeTime = now;
@@ -312,7 +317,7 @@ export class AnimationEngine {
       duration: 850,
       ease: 'inOutSine',
       onUpdate: () => {
-        if (!this.isHoveringPalette && !this.isHoveringCanvas && !this.isHoveringArtist && this.onBrushStroke) {
+        if (!this.isHoveringPalette && !this.isHoveringCanvas && !this.isHoveringArtist && this.armPoseWeight > 0.7 && this.onBrushStroke) {
           const now = performance.now();
           if (now - this.lastStrokeTime > 120) {
             this.lastStrokeTime = now;
@@ -347,7 +352,7 @@ export class AnimationEngine {
       duration: 780,
       ease: 'inOutSine',
       onUpdate: () => {
-        if (!this.isHoveringPalette && !this.isHoveringCanvas && !this.isHoveringArtist && this.onBrushStroke) {
+        if (!this.isHoveringPalette && !this.isHoveringCanvas && !this.isHoveringArtist && this.armPoseWeight > 0.7 && this.onBrushStroke) {
           const now = performance.now();
           if (now - this.lastStrokeTime > 140) {
             this.lastStrokeTime = now;
@@ -409,93 +414,22 @@ export class AnimationEngine {
       ease: 'inOutQuad'
     }, '-=700');
 
-    // Phase 6: DIP BRUSH IN PALETTE — deliberate loading ritual
-    // Research: "gently load the brush by pulling through pigment, not stabbing"
-    this.paintingTimeline.add(this.pose.rightArm, {
-      x: 0.86,
-      y: -0.34,
-      z: -0.66,
-      duration: 1000,
-      ease: 'inOutQuad'
-    }, '+=200');
-
-    this.paintingTimeline.add(this.pose.rightForeArm, {
-      x: 0.52,
-      y: -0.26,
-      z: -0.44,
-      duration: 1000,
-      ease: 'inOutQuad'
-    }, '-=1000');
-
-    // Head looks down at palette while dipping
-    this.paintingTimeline.add(this.pose.head, {
-      x: 0.34,
-      y: -0.24,
-      z: -0.04,
-      duration: 1000,
-      ease: 'inOutQuad'
-    }, '-=1000');
-
-    // Spine leans forward to reach palette
-    this.paintingTimeline.add(this.pose.spine, {
-      rx: 0.10,
-      ry: 0.06,
-      duration: 1000,
-      ease: 'inOutQuad'
-    }, '-=1000');
-
-    // Phase 7: CIRCULAR MIXING MOTION — loading brush with paint
-    // Research: "circular mixing motion" for loading brushes
-    this.paintingTimeline.add(this.pose.rightHand, {
-      x: [0.10, 0.24, 0.16, 0.10],
-      y: [-0.05, -0.12, -0.08, -0.05],
-      duration: 500,
-      ease: 'inOutSine'
-    }, '+=60');
-
-    // Phase 8: LIFT BRUSH — loaded with fresh paint, return to canvas
-    // Research: "decisive and economic movement... purposeful and energetic"
-    this.paintingTimeline.add(this.pose.rightArm, {
-      x: 0.65,
-      y: -0.15,
-      z: -0.90,
-      duration: 880,
-      ease: 'outCubic'
-    }, '+=100');
-
-    this.paintingTimeline.add(this.pose.rightForeArm, {
-      x: 0.35,
-      y: -0.10,
-      z: -0.65,
-      duration: 880,
-      ease: 'outCubic'
-    }, '-=880');
-
-    this.paintingTimeline.add(this.pose.rightHand, {
-      x: 0.10,
-      y: -0.05,
-      z: -0.15,
-      duration: 880,
-      ease: 'outCubic'
-    }, '-=880');
-
-    // Head returns to canvas focus
+    // Return focus smoothly back to canvas for the next brush stroke cycle
     this.paintingTimeline.add(this.pose.head, {
       x: -0.06,
       y: 0.04,
       z: -0.02,
-      duration: 880,
-      ease: 'outCubic'
-    }, '-=880');
+      duration: 650,
+      ease: 'inOutQuad'
+    }, '+=200');
 
-    // Spine straightens
     this.paintingTimeline.add(this.pose.spine, {
       rx: 0.08,
       ry: 0.04,
       rz: 0,
-      duration: 880,
-      ease: 'outCubic'
-    }, '-=880');
+      duration: 650,
+      ease: 'inOutQuad'
+    }, '-=650');
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -513,157 +447,268 @@ export class AnimationEngine {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 5. HOVER PALETTE — Artist presents palette and dips brush
-  //    Research: "tilts palette toward light to judge color"
+  // 5. HOVER & PICK COLOR FROM PALETTE
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   hoverPaletteColor(colorHex, colorIndex) {
+    if (this.isPickingColor) return;
+    if (this._activeHoverColorIdx === colorIndex) return;
+    this._activeHoverColorIdx = colorIndex;
+
     this.isHoveringPalette = true;
     this.isHoveringCanvas = false;
 
     if (this.paintingTimeline) this.paintingTimeline.pause();
 
-    // Right arm dips down toward the specific color well
+    // Right arm brings brush poised right above the specific paint well
     animate(this.pose.rightArm, {
-      x: 0.88,
-      y: -0.34,
-      z: -0.66,
-      duration: 350,
+      x: 0.80,
+      y: -0.24,
+      z: -0.62,
+      duration: 260,
       ease: 'outQuad'
     });
 
     animate(this.pose.rightForeArm, {
       x: 0.52,
-      y: -0.26,
-      z: -0.44,
-      duration: 350,
+      y: -0.18,
+      z: -0.42,
+      duration: 260,
       ease: 'outQuad'
     });
 
-    // Head attentively watches the dipping motion
-    animate(this.pose.head, {
-      x: 0.34,
-      y: -0.24,
-      duration: 300,
-      ease: 'outQuad'
-    });
-
-    // Micro-dip bounce — "loading" the brush with paint
     animate(this.pose.rightHand, {
-      x: [0.08, 0.24, 0.10],
-      duration: 350,
-      ease: 'outBack'
+      x: 0.22,
+      y: -0.06,
+      z: -0.04,
+      duration: 260,
+      ease: 'outQuad'
     });
 
-    if (this.onColorPicked) {
-      this.onColorPicked(colorHex, colorIndex);
-    }
+    // Head attentively watches the color well
+    animate(this.pose.head, {
+      x: 0.28,
+      y: -0.20,
+      z: -0.02,
+      duration: 250,
+      ease: 'outQuad'
+    });
+  }
+
+  // Multi-phase deliberate dipping and loading animation when a color is picked/clicked
+  pickColorFromPalette(colorHex, colorIndex) {
+    if (this.isPickingColor) return;
+    this.isPickingColor = true;
+    this.isHoveringPalette = true;
+    this.isHoveringCanvas = false;
+
+    if (this.paintingTimeline) this.paintingTimeline.pause();
+
+    // Phase 1: Brush tip dips down into the chosen oil paint mound
+    animate(this.pose.rightArm, {
+      x: 0.90,
+      y: -0.30,
+      z: -0.58,
+      duration: 240,
+      ease: 'outQuad'
+    });
+
+    animate(this.pose.rightForeArm, {
+      x: 0.56,
+      y: -0.22,
+      z: -0.38,
+      duration: 240,
+      ease: 'outQuad'
+    });
+
+    animate(this.pose.rightHand, {
+      x: 0.38,
+      y: -0.08,
+      z: 0.08,
+      duration: 240,
+      ease: 'outQuad'
+    });
+
+    animate(this.pose.head, {
+      x: 0.32,
+      y: -0.22,
+      z: -0.02,
+      duration: 240,
+      ease: 'outQuad'
+    });
+
+    // Phase 2: Loading twist/swirl motion in the paint mound
+    setTimeout(() => {
+      if (this.onColorPicked) {
+        this.onColorPicked(colorHex, colorIndex);
+      }
+
+      animate(this.pose.rightHand, {
+        x: [0.38, 0.44, 0.34, 0.38],
+        z: [0.08, 0.02, 0.06, 0.08],
+        duration: 280,
+        ease: 'inOutSine'
+      });
+
+      // Phase 3: Lift loaded brush up triumphantly toward canvas
+      setTimeout(() => {
+        animate(this.pose.rightArm, {
+          x: 0.68,
+          y: -0.14,
+          z: -0.84,
+          duration: 380,
+          ease: 'outBack'
+        });
+
+        animate(this.pose.rightForeArm, {
+          x: 0.44,
+          y: -0.08,
+          z: -0.54,
+          duration: 380,
+          ease: 'outBack'
+        });
+
+        animate(this.pose.rightHand, {
+          x: 0.14,
+          y: -0.04,
+          z: -0.10,
+          duration: 380,
+          ease: 'outQuad'
+        });
+
+        animate(this.pose.head, {
+          x: -0.06,
+          y: 0.04,
+          z: -0.02,
+          duration: 380,
+          ease: 'outQuad'
+        });
+
+        // Phase 4: Resume painting with newly loaded color
+        setTimeout(() => {
+          this.isPickingColor = false;
+          this.isHoveringPalette = false;
+          this._activeHoverColorIdx = -1;
+
+          // Make immediate fresh paint stroke on the working area of the canvas
+          if (this.onBrushStroke && this.armPoseWeight > 0.6) {
+            this.onBrushStroke(0.32 + Math.random() * 0.36, 0.52 + Math.random() * 0.28);
+          }
+
+          if (this.paintingTimeline) {
+            this.paintingTimeline.play();
+          }
+        }, 380);
+      }, 280);
+    }, 240);
   }
 
   hoverPalette() {
+    if (this.isPickingColor) return;
     if (this.isHoveringPalette) return;
     this.isHoveringPalette = true;
     this.isHoveringArtist = false;
     this.isHoveringCanvas = false;
     if (this.paintingTimeline) this.paintingTimeline.pause();
 
-    // Left arm lifts palette toward user — presenting colors proudly
-    // Research: "tilts palette toward light to judge color"
+    // Left arm smoothly presents palette forward towards viewer/easel
     animate(this.pose.leftArm, {
-      x: 0.90,
-      y: 0.28,
-      z: 0.70,
-      duration: 400,
-      ease: 'outBack'
+      x: 0.58,
+      y: 0.22,
+      z: 0.50,
+      duration: 350,
+      ease: 'outQuad'
     });
     animate(this.pose.leftForeArm, {
-      x: 0.58,
-      y: 0.24,
-      z: 0.56,
-      duration: 400,
-      ease: 'outBack'
+      x: 0.48,
+      y: 0.14,
+      z: 0.40,
+      duration: 350,
+      ease: 'outQuad'
     });
 
-    // Right arm hovers brush gracefully above paint wells
+    // Right arm hovers brush poised above paint wells
     animate(this.pose.rightArm, {
-      x: 0.86,
-      y: -0.34,
-      z: -0.64,
-      duration: 380,
+      x: 0.78,
+      y: -0.22,
+      z: -0.60,
+      duration: 340,
       ease: 'outQuad'
     });
     animate(this.pose.rightForeArm, {
-      x: 0.56,
-      y: -0.26,
-      z: -0.44,
-      duration: 380,
+      x: 0.50,
+      y: -0.16,
+      z: -0.42,
+      duration: 340,
       ease: 'outQuad'
     });
     animate(this.pose.rightHand, {
-      x: 0.22,
-      y: -0.10,
-      z: -0.10,
-      duration: 380,
+      x: 0.20,
+      y: -0.06,
+      z: -0.08,
+      duration: 340,
       ease: 'outQuad'
     });
 
     // Head glances down — concentrating on color selection
     animate(this.pose.head, {
-      x: 0.34,
-      y: -0.24,
-      z: -0.05,
-      duration: 340,
+      x: 0.26,
+      y: -0.18,
+      z: -0.03,
+      duration: 320,
       ease: 'outQuad'
     });
 
-    // Body leans slightly forward over palette
+    // Body leans slightly forward
     animate(this.pose.spine, {
-      rx: 0.12,
-      ry: 0.06,
-      duration: 380,
+      rx: 0.10,
+      ry: 0.04,
+      duration: 350,
       ease: 'outQuad'
     });
   }
 
   clearPaletteHover() {
+    if (this.isPickingColor) return;
     if (!this.isHoveringPalette) return;
     this.isHoveringPalette = false;
+    this._activeHoverColorIdx = -1;
 
-    // Smoothly restore left arm to natural holding position
+    // Smoothly restore left arm to natural forward holding position
     animate(this.pose.leftArm, {
-      x: 0.70,
-      y: 0.15,
-      z: 0.85,
-      duration: 450,
+      x: 0.52,
+      y: 0.18,
+      z: 0.58,
+      duration: 400,
       ease: 'outQuad'
     });
     animate(this.pose.leftForeArm, {
-      x: 0.40,
-      y: 0.15,
-      z: 0.70,
-      duration: 450,
+      x: 0.44,
+      y: 0.10,
+      z: 0.46,
+      duration: 400,
       ease: 'outQuad'
     });
 
-    // Right arm returns to painting stance
+    // Right arm returns to active painting stance
     animate(this.pose.rightArm, {
-      x: 0.65,
-      y: -0.15,
-      z: -0.90,
-      duration: 450,
+      x: 0.72,
+      y: -0.12,
+      z: -0.78,
+      duration: 400,
       ease: 'outQuad'
     });
     animate(this.pose.rightForeArm, {
-      x: 0.35,
-      y: -0.10,
-      z: -0.65,
-      duration: 450,
+      x: 0.48,
+      y: -0.08,
+      z: -0.52,
+      duration: 400,
       ease: 'outQuad'
     });
     animate(this.pose.rightHand, {
-      x: 0.10,
-      y: -0.05,
-      z: -0.15,
-      duration: 450,
+      x: 0.14,
+      y: -0.04,
+      z: -0.10,
+      duration: 400,
       ease: 'outQuad'
     });
 
@@ -672,21 +717,19 @@ export class AnimationEngine {
       x: -0.06,
       y: 0.04,
       z: -0.02,
-      duration: 450,
+      duration: 400,
       ease: 'outQuad'
     });
-
     animate(this.pose.spine, {
       rx: 0.08,
       ry: 0.04,
-      duration: 450,
-      ease: 'outQuad',
-      onComplete: () => {
-        if (!this.isHoveringPalette && !this.isHoveringArtist && !this.isHoveringCanvas && this.paintingTimeline) {
-          this.paintingTimeline.play();
-        }
-      }
+      duration: 400,
+      ease: 'outQuad'
     });
+
+    if (this.paintingTimeline) {
+      this.paintingTimeline.play();
+    }
   }
 
   setMousePointer(normX, normY) {
@@ -871,6 +914,7 @@ export class AnimationEngine {
     const s1_endX = s1_startX + 0.16 + Math.random() * 0.16;
     const s1_endY = s1_startY - 0.20 - Math.random() * 0.15;
     let lastT1 = 0;
+    let s1_startTime = 0;
 
     this.artistHoverTimeline.add(this.pose.rightArm, {
       x: 0.52,
@@ -878,11 +922,12 @@ export class AnimationEngine {
       z: -0.98,
       duration: 440,
       ease: 'inOutSine',
-      onUpdate: (anim) => {
+      onBegin: () => { s1_startTime = performance.now(); },
+      onUpdate: () => {
         const now = performance.now();
         if (this.onBrushStroke && now - lastT1 > 40) {
           lastT1 = now;
-          const p = anim ? (anim.progress ?? 0.5) : 0.5;
+          const p = Math.min(1, (now - s1_startTime) / 440);
           this.onBrushStroke(
             s1_startX + (s1_endX - s1_startX) * p,
             s1_startY + (s1_endY - s1_startY) * p
@@ -905,6 +950,7 @@ export class AnimationEngine {
     const s2_endX = Math.max(0.18, Math.min(0.82, s2_startX - 0.22 - Math.random() * 0.14));
     const s2_endY = Math.max(0.18, Math.min(0.82, s2_startY + 0.16 + Math.random() * 0.12));
     let lastT2 = 0;
+    let s2_startTime = 0;
 
     this.artistHoverTimeline.add(this.pose.rightArm, {
       x: 0.68,
@@ -912,11 +958,12 @@ export class AnimationEngine {
       z: -0.86,
       duration: 440,
       ease: 'inOutSine',
-      onUpdate: (anim) => {
+      onBegin: () => { s2_startTime = performance.now(); },
+      onUpdate: () => {
         const now = performance.now();
         if (this.onBrushStroke && now - lastT2 > 40) {
           lastT2 = now;
-          const p = anim ? (anim.progress ?? 0.5) : 0.5;
+          const p = Math.min(1, (now - s2_startTime) / 440);
           this.onBrushStroke(
             s2_startX + (s2_endX - s2_startX) * p,
             s2_startY + (s2_endY - s2_startY) * p
@@ -947,6 +994,7 @@ export class AnimationEngine {
     const s3_endX = s3_startX + (Math.random() - 0.5) * 0.18;
     const s3_endY = s3_startY + 0.08 + Math.random() * 0.10;
     let lastT3 = 0;
+    let s3_startTime = 0;
 
     this.artistHoverTimeline.add(this.pose.rightArm, {
       x: 0.58,
@@ -954,11 +1002,12 @@ export class AnimationEngine {
       z: -0.92,
       duration: 380,
       ease: 'inOutSine',
-      onUpdate: (anim) => {
+      onBegin: () => { s3_startTime = performance.now(); },
+      onUpdate: () => {
         const now = performance.now();
         if (this.onBrushStroke && now - lastT3 > 40) {
           lastT3 = now;
-          const p = anim ? (anim.progress ?? 0.5) : 0.5;
+          const p = Math.min(1, (now - s3_startTime) / 380);
           this.onBrushStroke(
             s3_startX + (s3_endX - s3_startX) * p,
             s3_startY + (s3_endY - s3_startY) * p
@@ -1234,6 +1283,11 @@ export class AnimationEngine {
     const b = this.bones;
     const p = this.pose;
 
+    // Accumulate walk time
+    this._walkTime = (this._walkTime || 0) + delta;
+    // Track whether model is moving (set externally by main.js)
+    const isWalking = this.isWalking || false;
+
     this.resetAllBones();
 
     // Smooth interactive gaze tracking towards cursor
@@ -1271,20 +1325,47 @@ export class AnimationEngine {
       );
     }
 
-    // 3. Left Arm: Holds palette securely at waist
+    // Smooth arm pose weighting: when walking or away from canvas, hands down; near canvas, hands up holding tools
+    const targetArmWeight = (isWalking || !this.isNearCanvas) ? 0.0 : 1.0;
+    this.armPoseWeight = THREE.MathUtils.damp(this.armPoseWeight, targetArmWeight, 4.5, delta);
+    const w = this.armPoseWeight;
+
+    // Walking arm swing frequency & amplitude
+    const walkCycle = Math.sin(this._walkTime * 6.0);
+    const walkAmp = isWalking ? 0.45 : 0;
+
+    // 3. Left Arm: Holds palette securely at waist when near canvas; hands down naturally by hip when moving
+    const lArmDownX = 0.05 - walkAmp * walkCycle * 0.35;
+    const lArmDownY = 0.05;
+    const lArmDownZ = 1.32;
+    const lForeDownX = 0.22;
+    const lForeDownY = 0.08;
+    const lForeDownZ = 0.10;
+    const lHandDownX = 0.05;
+
+    const curLArmX = THREE.MathUtils.lerp(lArmDownX, p.leftArm.x, w);
+    const curLArmY = THREE.MathUtils.lerp(lArmDownY, p.leftArm.y, w);
+    const curLArmZ = THREE.MathUtils.lerp(lArmDownZ, p.leftArm.z, w);
+
+    const curLForeX = THREE.MathUtils.lerp(lForeDownX, p.leftForeArm.x, w);
+    const curLForeY = THREE.MathUtils.lerp(lForeDownY, p.leftForeArm.y, w);
+    const curLForeZ = THREE.MathUtils.lerp(lForeDownZ, p.leftForeArm.z, w);
+
+    const curLHandX = THREE.MathUtils.lerp(lHandDownX, p.leftHand.x, w);
+
     if (b.leftArm) {
       b.leftArm.quaternion.multiply(
-        new THREE.Quaternion().setFromEuler(new THREE.Euler(p.leftArm.x, p.leftArm.y, p.leftArm.z))
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(curLArmX, curLArmY, curLArmZ))
       );
     }
     if (b.leftForeArm) {
       b.leftForeArm.quaternion.multiply(
-        new THREE.Quaternion().setFromEuler(new THREE.Euler(p.leftForeArm.x, p.leftForeArm.y, p.leftForeArm.z))
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(curLForeX, curLForeY, curLForeZ))
       );
     }
     if (b.leftHand) {
       b.leftHand.quaternion.multiply(
-        new THREE.Quaternion().setFromEuler(new THREE.Euler(p.leftHand.x, p.leftHand.y, p.leftHand.z))
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(curLHandX, p.leftHand.y * w, p.leftHand.z * w))
       );
     }
     // Curled fingers — thumb through thumbhole, fingers gripping palette rim
@@ -1307,20 +1388,38 @@ export class AnimationEngine {
       b.leftHandPinky1.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0.58, 0, 0.30)));
     }
 
-    // 4. Right Arm: Actively painting — uses full range from shoulder
+    // 4. Right Arm: Holds brush downwards at side when moving, actively paints from shoulder when near canvas
+    const rArmDownX = -0.05 + walkAmp * walkCycle * 0.35;
+    const rArmDownY = -0.05;
+    const rArmDownZ = -1.32;
+    const rForeDownX = 0.22;
+    const rForeDownY = -0.08;
+    const rForeDownZ = -0.10;
+    const rHandDownX = 0.05;
+
+    const curRArmX = THREE.MathUtils.lerp(rArmDownX, p.rightArm.x, w);
+    const curRArmY = THREE.MathUtils.lerp(rArmDownY, p.rightArm.y, w);
+    const curRArmZ = THREE.MathUtils.lerp(rArmDownZ, p.rightArm.z, w);
+
+    const curRForeX = THREE.MathUtils.lerp(rForeDownX, p.rightForeArm.x, w);
+    const curRForeY = THREE.MathUtils.lerp(rForeDownY, p.rightForeArm.y, w);
+    const curRForeZ = THREE.MathUtils.lerp(rForeDownZ, p.rightForeArm.z, w);
+
+    const curRHandX = THREE.MathUtils.lerp(rHandDownX, p.rightHand.x, w);
+
     if (b.rightArm) {
       b.rightArm.quaternion.multiply(
-        new THREE.Quaternion().setFromEuler(new THREE.Euler(p.rightArm.x, p.rightArm.y, p.rightArm.z))
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(curRArmX, curRArmY, curRArmZ))
       );
     }
     if (b.rightForeArm) {
       b.rightForeArm.quaternion.multiply(
-        new THREE.Quaternion().setFromEuler(new THREE.Euler(p.rightForeArm.x, p.rightForeArm.y, p.rightForeArm.z))
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(curRForeX, curRForeY, curRForeZ))
       );
     }
     if (b.rightHand) {
       b.rightHand.quaternion.multiply(
-        new THREE.Quaternion().setFromEuler(new THREE.Euler(p.rightHand.x, p.rightHand.y, p.rightHand.z))
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(curRHandX, p.rightHand.y * w, p.rightHand.z * w))
       );
     }
 
@@ -1367,23 +1466,50 @@ export class AnimationEngine {
       );
     }
 
-    // 6. Legs: Natural standing stance with weight shift
+    // 6. Legs: Walking animation when moving, natural stance when idle
+    const kneeBend  = isWalking ? 0.30 : 0;
+
     if (b.leftUpLeg) {
       b.leftUpLeg.quaternion.multiply(
         new THREE.Quaternion().setFromEuler(new THREE.Euler(
-          -0.06 + p.weightShift.lean * 0.3,
+          (-0.06 + walkAmp * walkCycle)  + p.weightShift.lean * 0.3,
           0.05,
           0.08 + p.weightShift.lean * 0.15
         ))
       );
     }
+    if (b.leftLeg) {
+      // Knee bends on the recovery phase (when thigh swings forward)
+      const leftKnee = kneeBend * Math.max(0, -walkCycle);
+      b.leftLeg.quaternion.multiply(
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(leftKnee, 0, 0))
+      );
+    }
+    if (b.leftFoot) {
+      const leftAnkle = isWalking ? walkAmp * 0.20 * -walkCycle : 0;
+      b.leftFoot.quaternion.multiply(
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(leftAnkle, 0, 0))
+      );
+    }
     if (b.rightUpLeg) {
       b.rightUpLeg.quaternion.multiply(
         new THREE.Quaternion().setFromEuler(new THREE.Euler(
-          0.08 - p.weightShift.lean * 0.3,
+          (0.08 - walkAmp * walkCycle) - p.weightShift.lean * 0.3,
           -0.05,
           -0.08 - p.weightShift.lean * 0.15
         ))
+      );
+    }
+    if (b.rightLeg) {
+      const rightKnee = kneeBend * Math.max(0, walkCycle);
+      b.rightLeg.quaternion.multiply(
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(rightKnee, 0, 0))
+      );
+    }
+    if (b.rightFoot) {
+      const rightAnkle = isWalking ? walkAmp * 0.20 * walkCycle : 0;
+      b.rightFoot.quaternion.multiply(
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(rightAnkle, 0, 0))
       );
     }
   }

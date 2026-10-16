@@ -76,7 +76,7 @@ export class PaletteAnimationEngine {
 
   /**
    * Highlight a specific color well when hovered
-   * Creates a warm glow effect like light catching wet oil paint
+   * Creates a warm glow effect like light catching wet oil paint and elevates the mound
    */
   highlightColor(colorIndex) {
     if (this.activeColorIndex === colorIndex) return;
@@ -88,14 +88,29 @@ export class PaletteAnimationEngine {
 
     this.activeColorIndex = colorIndex;
     const state = this.glowStates.get(colorIndex);
+    const mesh  = this.paletteColorMeshes[colorIndex];
     if (!state) return;
 
     state.isHovered = true;
 
+    if (mesh) {
+      if (!mesh.userData.originalScale) {
+        mesh.userData.originalScale = mesh.scale.clone();
+      }
+      const orig = mesh.userData.originalScale;
+      animate(mesh.scale, {
+        x: orig.x * 1.28,
+        y: orig.y * 1.40,
+        z: orig.z * 1.28,
+        duration: 220,
+        ease: 'outBack'
+      });
+    }
+
     // Animate glow intensity up — warm emissive light
     animate(state, {
-      glowIntensity: 0.6,
-      duration: 250,
+      glowIntensity: 0.95,
+      duration: 220,
       ease: 'outQuad'
     });
   }
@@ -105,13 +120,25 @@ export class PaletteAnimationEngine {
    */
   unhighlightColor(colorIndex) {
     const state = this.glowStates.get(colorIndex);
+    const mesh  = this.paletteColorMeshes[colorIndex];
     if (!state) return;
 
     state.isHovered = false;
 
+    if (mesh && mesh.userData.originalScale) {
+      const orig = mesh.userData.originalScale;
+      animate(mesh.scale, {
+        x: orig.x,
+        y: orig.y,
+        z: orig.z,
+        duration: 280,
+        ease: 'outQuad'
+      });
+    }
+
     animate(state, {
       glowIntensity: 0,
-      duration: 400,
+      duration: 350,
       ease: 'outQuad'
     });
   }
@@ -127,24 +154,35 @@ export class PaletteAnimationEngine {
   }
 
   /**
-   * Paint dip visual feedback — the paint well briefly "dimples"
-   * when the artist dips the brush into it
+   * Paint dip visual feedback — the paint well compresses and ripples
+   * with elastic spring-back when the artist dips the brush into it
    */
   dipFeedback(colorIndex) {
-    const mesh = this.paletteColorMeshes[colorIndex];
+    const mesh  = this.paletteColorMeshes[colorIndex];
+    const state = this.glowStates.get(colorIndex);
     if (!mesh) return;
 
-    // Quick scale dip — like pressing into soft wet paint
-    const origScale = mesh.userData.originalScale || mesh.scale.clone();
     if (!mesh.userData.originalScale) {
       mesh.userData.originalScale = mesh.scale.clone();
     }
+    const orig = mesh.userData.originalScale;
 
+    // Soft wet paint compression and elastic bounce
     animate(mesh.scale, {
-      y: [origScale.y, origScale.y * 0.85, origScale.y],
-      duration: 400,
+      x: [orig.x * 1.30, orig.x * 0.88, orig.x],
+      y: [orig.y * 0.40, orig.y * 1.25, orig.y],
+      z: [orig.z * 1.30, orig.z * 0.88, orig.z],
+      duration: 480,
       ease: 'outBack'
     });
+
+    if (state) {
+      animate(state, {
+        glowIntensity: [1.2, 0.4],
+        duration: 480,
+        ease: 'outQuad'
+      });
+    }
   }
 
   /**
