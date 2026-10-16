@@ -38,26 +38,29 @@ export function useRaycaster(containerRef, cameraRef, refs) {
   const syncPalettePivot = useCallback(() => {
     const ae = refs.animationEngine.current;
     const pp = refs.palettePivot.current;
-    const s  = paletteHoverState.current;
+    const s = paletteHoverState.current;
     if (!ae || !pp || !ae.bones.leftHand) return;
 
     const lHand = ae.bones.leftHand;
     lHand.updateWorldMatrix(true, false);
 
     const pos = new THREE.Vector3();
+    const quat = new THREE.Quaternion();
     lHand.getWorldPosition(pos);
+    lHand.getWorldQuaternion(quat);
 
-    // Get the character's body rotation around Y so palette turns with character
-    const modelRotY = refs.modelRoot?.current ? refs.modelRoot.current.rotation.y : 0;
-    const bodyQuat  = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), modelRotY);
-
-    // Position palette thumbhole flat across the left palm:
-    const offset = new THREE.Vector3(0.03, -0.015 + s.elevation, 0.025).applyQuaternion(bodyQuat);
+    // In mixamorig:LeftHand bone local space:
+    // +Y is along palm towards fingers, -X is thumb side, +Z is palm surface normal.
+    // Offset centers the palette directly on the palm with thumb resting near thumbhole:
+    const offset = new THREE.Vector3(-0.038, 0.085 + s.elevation, 0.035).applyQuaternion(quat);
     pp.position.copy(pos).add(offset);
 
-    // Orientation: flat horizontal facing upward towards the artist & viewer
-    const baseEuler = new THREE.Euler(0.12 + s.tiltX, 0.44 + s.tiltY, -0.06 + s.tiltZ);
-    pp.quaternion.copy(bodyQuat).multiply(new THREE.Quaternion().setFromEuler(baseEuler));
+    // Orient palette so colorful paint mounds face up with palm surface (+Z in hand space)
+    // and thumbhole sits naturally around the thumb:
+    const baseRot = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(Math.PI / 2 + s.tiltX, s.tiltY, Math.PI - 0.25 + s.tiltZ)
+    );
+    pp.quaternion.copy(quat).multiply(baseRot);
     pp.scale.setScalar(s.scaleMult);
   }, [refs]);
 
@@ -68,18 +71,18 @@ export function useRaycaster(containerRef, cameraRef, refs) {
     const rHand = ae.bones.rightHand;
     rHand.updateWorldMatrix(true, false);
 
-    const rPos  = new THREE.Vector3();
+    const rPos = new THREE.Vector3();
     const rQuat = new THREE.Quaternion();
     rHand.getWorldPosition(rPos);
     rHand.getWorldQuaternion(rQuat);
 
-    // Brush handle sits in the palm across curled fingers
-    const localGrip = new THREE.Vector3(0.022, 0.038, 0.008);
-    pb.position.copy(rPos).add(localGrip.applyQuaternion(rQuat));
+    // In mixamorig:RightHand: brush handle sits in the palm across curled fingers
+    const grip = new THREE.Vector3(0.015, 0.075, 0.025).applyQuaternion(rQuat);
+    pb.position.copy(rPos).add(grip);
 
     // Bristle tip extends forward along finger direction towards the easel
     const brushLocalRot = new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(-Math.PI / 2 + 0.15, 0, 0.20)
+      new THREE.Euler(-Math.PI / 2 + 0.15, 0, 0.15)
     );
     pb.quaternion.copy(rQuat).multiply(brushLocalRot);
   }, [refs]);
@@ -89,54 +92,21 @@ export function useRaycaster(containerRef, cameraRef, refs) {
     if (!container) return;
 
     const raycaster = new THREE.Raycaster();
-    const mouse     = new THREE.Vector2();
-
-    const updateMouse = (event) => {
-      const rect = container.getBoundingClientRect();
-      mouse.x = ((event.clientX - rect.left) / rect.width)  * 2 - 1;
-      mouse.y = -((event.clientY - rect.top)  / rect.height) * 2 + 1;
-      const camera = cameraRef.current;
-      if (camera) raycaster.setFromCamera(mouse, camera);
-    };
-
-    const onPointerDown = (event) => {
-      updateMouse(event);
-      const ae  = refs.animationEngine.current;
-      const pae = refs.paletteAnimationEngine.current;
-      const pe  = refs.paintingEngine.current;
-      const pb  = refs.paintbrush.current;
-
-      // 1. Check palette color click
-      const colMeshes = refs.paletteColorMeshes.current;
-      if (colMeshes.length > 0) {
-        const hits = raycaster.intersectObjects(colMeshes, false);
-        if (hits.length > 0) {
-          const uData = hits[0].object.userData;
-          if (uData?.colorHex) {
-            if (pb)  pb.setTipColor(uData.colorHex);
-            if (pe)  { pe.setColor(uData.colorIndex); pe.setColorHex(uData.colorHex); }
-            if (pae) pae.dipFeedback(uData.colorIndex);
-            if (ae)  ae.pickColorFromPalette(uData.colorHex, uData.colorIndex);
-            return;
-          }
-        }
-      }
-
-      // 2. Check canvas click — paint a stroke
-      const cm = refs.canvasMesh.current;
-      if (cm) {
-        const hits = raycaster.intersectObject(cm, false);
-        if (hits.length > 0 && hits[0].uv) {
-          if (pe) pe.paintAt(hits[0].uv.x, hits[0].uv.y);
-          return;
-        }
-      }
-    };
+    const mouse = new THREE.Vector2();
 
     const onPointerMove = (event) => {
-      updateMouse(event);
-      const ae  = refs.animationEngine.current;
+      const rect = container.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      const camera = cameraRef.current;
+      if (!camera) return;
+      raycaster.setFromCamera(mouse, camera);
+
+      const ae = refs.animationEngine.current;
       const pae = refs.paletteAnimationEngine.current;
+      const pe = refs.paintingEngine.current;
+      const pb = refs.paintbrush.current;
       if (ae) ae.setMousePointer(mouse.x, mouse.y);
 
       let isOnPalette = false;
@@ -149,7 +119,9 @@ export function useRaycaster(containerRef, cameraRef, refs) {
           isOnPalette = true;
           const uData = hits[0].object.userData;
           if (uData?.colorHex) {
-            if (ae)  ae.hoverPaletteColor(uData.colorHex, uData.colorIndex);
+            if (pb) pb.setTipColor(uData.colorHex);
+            if (pe) { pe.setColor(uData.colorIndex); pe.setColorHex(uData.colorHex); }
+            if (ae) ae.hoverPaletteColor(uData.colorHex, uData.colorIndex);
             if (pae) pae.highlightColor(uData.colorIndex);
           }
         }
@@ -161,7 +133,7 @@ export function useRaycaster(containerRef, cameraRef, refs) {
         container.style.cursor = 'pointer';
         if (activeHoverRef.current !== 'palette') {
           if (activeHoverRef.current === 'artist' && ae) ae.clearArtistHover();
-          if (activeHoverRef.current === 'canvas'  && ae) ae.clearHover();
+          if (activeHoverRef.current === 'canvas' && ae) ae.clearHover();
           activeHoverRef.current = 'palette';
         }
         onPaletteEnter();
@@ -197,7 +169,7 @@ export function useRaycaster(containerRef, cameraRef, refs) {
       container.style.cursor = 'default';
       if (activeHoverRef.current === 'palette') onPaletteLeave();
       if (activeHoverRef.current === 'artist' && ae) ae.clearArtistHover();
-      if (activeHoverRef.current === 'canvas'  && ae) ae.clearHover();
+      if (activeHoverRef.current === 'canvas' && ae) ae.clearHover();
       activeHoverRef.current = null;
     };
 
@@ -206,16 +178,14 @@ export function useRaycaster(containerRef, cameraRef, refs) {
       const ae = refs.animationEngine.current;
       if (activeHoverRef.current === 'palette') onPaletteLeave();
       if (activeHoverRef.current === 'artist' && ae) ae.clearArtistHover();
-      if (activeHoverRef.current === 'canvas'  && ae) ae.clearHover();
+      if (activeHoverRef.current === 'canvas' && ae) ae.clearHover();
       activeHoverRef.current = null;
     };
 
-    container.addEventListener('pointerdown',  onPointerDown);
-    container.addEventListener('pointermove',  onPointerMove);
+    container.addEventListener('pointermove', onPointerMove);
     container.addEventListener('pointerleave', onPointerLeave);
     return () => {
-      container.removeEventListener('pointerdown',  onPointerDown);
-      container.removeEventListener('pointermove',  onPointerMove);
+      container.removeEventListener('pointermove', onPointerMove);
       container.removeEventListener('pointerleave', onPointerLeave);
     };
   }, [containerRef, cameraRef, refs, onPaletteEnter, onPaletteLeave]);
